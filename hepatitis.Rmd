@@ -2,44 +2,61 @@
 title: "Hepatitis"
 output: html_notebook
 ---
-
+rm(list=ls())
 Variable names and data were in a separate file. Start by assigning names to variables.
+
 ```{r}
+hepatitis_orig <- read.csv("C:/Users/kelse/Documents/Year_2/Rotations/Colubri/Hepatitis_data/hepatitis.csv", header = FALSE, sep = ",")
+
+hepatitis <- hepatitis_orig
+
 names <- c("Class", "Age", "Sex", "Steroid",  "Antivirals", "Fatigue", "Malaise", "Anorexia", "Liver_big", "Liver_firm",  "Spleen_palpable",  "Spiders", "Ascites",  "Varices", "Bilirubin", "Alk_phosphate", "Sgot",  "Albumin", "Protime",  "Histology")
 
 names(hepatitis) <- names
 
 head(hepatitis)
 ```
-Replace values of 1 and 2 with no and yes, respectively (got this info from hepatitis NAMES file).
-```{r}
-hepatitis <- within(hepatitis, {
-  Class <- ifelse(Class==1, "die", "live")
-  Sex <- ifelse(Sex==1,"male", "female")
-  Steroid <- ifelse(Steroid==1, "no", "yes")
-  Antivirals <- ifelse(Antivirals==1, "no", "yes")
-  Fatigue <- ifelse(Fatigue==1, "no", "yes")
-  Malaise <- ifelse(Malaise==1, "no", "yes")
-  Anorexia <- ifelse(Anorexia==1, "no", "yes")
-  Liver_big <- ifelse(Liver_big==1, "no", "yes")
-  Liver_firm <- ifelse(Liver_firm==1, "no", "yes")
-  Spleen_palpable <- ifelse(Spleen_palpable==1, "no", "yes")
-  Spiders <- ifelse(Spiders==1, "no", "yes")
-  Ascites <- ifelse(Ascites==1, "no", "yes")
-  Varices <- ifelse(Varices==1, "no", "yes")
-  Histology <- ifelse(Histology==1, "no", "yes")
-})
 
-head(hepatitis)
-```
 
 It looks like missing values are recorded as "?" in this dataset. Start by changing these to NA.
 
 ```{r}
 library(naniar)
-hepatitis %>% 
+hepatitis <- hepatitis %>% 
   replace_with_na_all(condition = ~.x == "?")
+
+sapply(hepatitis, function(x) sum(is.na(x))) # Display total NAs in each variable
 ```
+
+
+
+Replace values of 1 and 2 with die and live, respectively (got this info from hepatitis NAMES file).
+
+```{r}
+hepatitis <- within(hepatitis, {
+Class[Class == 1] <- "die"
+Class[Class == 2] <- "live"
+})
+head(hepatitis)
+
+```
+
+```{r}
+yes_no <- c("Steroid", "Antivirals",  "Fatigue", "Malaise", "Anorexia", "Liver_big", "Liver_firm", 
+            "Spleen_palpable", "Spiders", "Ascites", "Varices", "Histology")
+```
+
+```{r}
+#probably don't even need this code - can keep values as 1 and 2 for no and yes
+for (i in yes_no) {
+  hepatitis2 <- within(hepatitis, {
+    i[i == 1] <- "no" })
+}
+
+head(hepatitis2)
+```
+
+
 
 Visualize some of the missing data using techniques I learned in tutorials.
 
