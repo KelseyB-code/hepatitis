@@ -2,11 +2,10 @@
 title: "Hepatitis"
 output: html_notebook
 ---
-rm(list=ls())
 Variable names and data were in a separate file. Start by assigning names to variables.
 
 ```{r}
-hepatitis_orig <- read.csv("C:/Users/kelse/Documents/Year_2/Rotations/Colubri/Hepatitis_data/hepatitis.csv", header = FALSE, sep = ",")
+hepatitis_raw <- read.csv("C:/Users/kelse/Documents/Year_2/Rotations/Colubri/Hepatitis_data/hepatitis.csv", header = FALSE, sep = ",")
 
 hepatitis <- hepatitis_orig
 
@@ -28,8 +27,6 @@ hepatitis <- hepatitis %>%
 sapply(hepatitis, function(x) sum(is.na(x))) # Display total NAs in each variable
 ```
 
-
-
 Replace values of 1 and 2 with die and live, respectively (got this info from hepatitis NAMES file).
 
 ```{r}
@@ -37,30 +34,44 @@ hepatitis <- within(hepatitis, {
 Class[Class == 1] <- "die"
 Class[Class == 2] <- "live"
 })
-head(hepatitis)
+head(hepatitis, 10)
 
 ```
 
+Use Hmisc for multiple  imputation. Start with aregimpute, which performs multiple imputation using bootstraping and predictive mean matching. This is good for continuous and categorical variables.
+
+
 ```{r}
-yes_no <- c("Steroid", "Antivirals",  "Fatigue", "Malaise", "Anorexia", "Liver_big", "Liver_firm", 
-            "Spleen_palpable", "Spiders", "Ascites", "Varices", "Histology")
+library(Hmisc)
+hepatitis_imp <- aregImpute(~ Steroid + Fatigue + Malaise + Anorexia + Liver_big + Liver_firm + Spleen_palpable + Spiders + Ascites + Varices + Bilirubin + Alk_phosphate + Sgot + Albumin + Protime, data = hepatitis, n.impute = 5)
+
+```
+Got an error message. Try transcan instead and follow the pipeline from Harrel Chapter 11.
+
+```{r}
+htrans <- #creates a transcan object with results of transcan imputation
+  transcan(~ Steroid + Fatigue + Malaise + Anorexia + Liver_big + Liver_firm + 
+             Spleen_palpable + Spiders + Ascites + Varices + Bilirubin + 
+             Alk_phosphate + Sgot + Albumin + Protime,
+           imputed=TRUE, transformed=TRUE, 
+           data=hepatitis, pl=FALSE, pr=FALSE)
+
+#impute creates a new data set with all values of imputed variables (designated with *)
+hep_imp <- impute(htrans, data=hepatitis, list.out=TRUE)
+
 ```
 
+Next add imputed values back to original data set.
 ```{r}
-#probably don't even need this code - can keep values as 1 and 2 for no and yes
-for (i in yes_no) {
-  hepatitis2 <- within(hepatitis, {
-    i[i == 1] <- "no" })
-}
 
-head(hepatitis2)
-```
+#all.vars returns a character vector containing all names in the expression. It seems this would be the
+#same as making a vector like c("Steroid", "Fatigue", ...). all.vars() is a little more streamlined
+#because you don't have to type quotes.
+NAvars <- all.vars(~ Steroid + Fatigue + Malaise + Anorexia + Liver_big + Liver_firm + Spleen_palpable + Spiders + Ascites + Varices + Bilirubin + Alk_phosphate + Sgot + Albumin + Protime) 
 
+for(x in NAvars) hepatitis[[x]] <- hep_imp[[x]] #assign imputed values in imp back to original dataset
 
-
-Visualize some of the missing data using techniques I learned in tutorials.
-
-```{r}
+sapply(hepatitis, function(x) sum(is.na(x))) #check that all NAs have been replaced
 
 ```
 
