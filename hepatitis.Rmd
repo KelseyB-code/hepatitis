@@ -6,6 +6,7 @@ output: html_notebook
 Variable names and data were in a separate file. Start by assigning names to variables.
 
 ```{r}
+
 hepatitis_raw <- read.csv("C:/Users/kelse/Documents/Year_2/Rotations/Colubri/Hepatitis_data/hepatitis.csv", header = FALSE, sep = ",")
 
 hepatitis <- hepatitis_raw
@@ -131,3 +132,28 @@ mean(glm.pred == Class)
 ```
 
 I think this means the model was only correct 10% of the time. Need to check this model again, and fit some others as well!
+
+###Apply pipeline from Harris Chapter 11.4
+
+```{r}
+hepatitis$Class <- as.factor(hepatitis$Class)
+summary(hepatitis$Class)
+```
+
+Subset data for cases where Class = live. Then select the transformed component of the transcan object and subset (recall that the transcan object $transformed contains the matrix of transformed variables)
+
+```{r}
+subset <- hepatitis$Class %in% "live"
+trans <- htrans$transformed[subset,]
+hsub <- hepatitis[subset,] #subset rows where Class = live
+```
+
+
+Now fit binary logistic model on original variables 
+
+```{r}
+library(rms)
+f <- lrm(Class ~ Age + Sex + Steroid + Antivirals + Fatigue + Malaise + Anorexia + Liver_big + Liver_firm + Spleen_palpable + Spiders + Ascites + Varices + Bilirubin + Alk_phosphate + Sgot + Albumin + Protime + Histology, data=hsub)
+
+```
+
