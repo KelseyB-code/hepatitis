@@ -6,7 +6,7 @@ output: html_notebook
 Variable names and data were in a separate file. Start by assigning names to variables.
 
 ```{r}
-
+rm(list=ls())
 hepatitis_raw <- read.csv("C:/Users/kelse/Documents/Year_2/Rotations/Colubri/Hepatitis_data/hepatitis.csv", header = FALSE, sep = ",")
 
 hepatitis <- hepatitis_raw
@@ -40,16 +40,8 @@ head(hepatitis, 10)
 
 ```
 
-Use Hmisc for multiple  imputation. Start with aregimpute, which performs multiple imputation using bootstraping and predictive mean matching. This is good for continuous and categorical variables.
 
-
-```{r}
-library(Hmisc)
-hepatitis_imp <- aregImpute(~ Steroid + Fatigue + Malaise + Anorexia + Liver_big + Liver_firm + Spleen_palpable + Spiders + Ascites + Varices + Bilirubin + Alk_phosphate + Sgot + Albumin + Protime, data = hepatitis, n.impute = 5)
-
-```
-Got an error message. Try transcan instead and follow the pipeline from Harrel Chapter 11.
-
+### Use transcan to impute missing values
 ```{r}
 htrans <- #creates a transcan object with results of transcan imputation
   transcan(~ Steroid + Fatigue + Malaise + Anorexia + Liver_big + Liver_firm + 
@@ -77,35 +69,61 @@ sapply(hepatitis, function(x) sum(is.na(x))) #check that all NAs have been repla
 
 ```
 
+### Build a logistic regression model 
+Convert outcome variable to factor
+Convert other variables to numeric
+
+When I try the following code I get an error that says "NAs introduced by coercion" and all my data becomes NA
+
 ```{r}
-glm.fit <- glm(Class ~ Age + Sex + Steroid + Antivirals + Fatigue + Malaise + Anorexia + Liver_big + Liver_firm + Spleen_palpable + Spiders + Ascites + Varices + Bilirubin + Alk_phosphate + Sgot + Albumin + Protime + Histology, data = hepatitis, family = binomial)
+hepatitis_1 <- hepatitis
+
+for(i in 2:20) {
+ hepatitis_1[, i] <- as.numeric(as.character(hepatitis[, i]))
+}
 ```
 
-Need to change variable formats. 
+Next I tried using sapply to do the same thing, but this didn't seem to work either. Bilirubin, Albumin, and some other variables didn't convert correctly.
 
 ```{r}
-#Convert character variables to factors
-hepatitis$Class <- as.factor(hepatitis$Class)
-hepatitis$Steroid <- as.factor(hepatitis$Steroid) #After this Steroid still shows as class S3:impute
-hepatitis$Antivirals <- as.factor(hepatitis$Antivirals)
-hepatitis$Sex <- as.factor(hepatitis$Sex)
-hepatitis$Histology <- as.factor(hepatitis$Histology)
+hep <- sapply(hepatitis, as.character)
+hep <- sapply(hepatitis, as.numeric)
 
-#Convert factor variables to character and then to doubles
-hepatitis$Albumin <- as.numeric(as.character(hepatitis$Albumin))
+```
+
+```{r}
+head(hepatitis)
+```
+
+```{r}
+
+hepatitis$Class <- factor(hepatitis$Class)
+
+#Convert character variables to factors
+hepatitis$Age <- as.numeric(as.character(hepatitis$Age))
+hepatitis$Sex <- as.numeric(as.character(hepatitis$Sex))
+hepatitis$Steroid <- as.numeric(as.character(hepatitis$Steroid))
+hepatitis$Antivirals <- as.numeric(as.character(hepatitis$Antivirals))
+hepatitis$Fatigue <- as.numeric(as.character(hepatitis$Fatigue))
+hepatitis$Malaise <- as.numeric(as.character(hepatitis$Malaise))
+hepatitis$Anorexia <- as.numeric(as.character(hepatitis$Anorexia))
+hepatitis$Liver_big <- as.numeric(as.character(hepatitis$Liver_big))
+hepatitis$Liver_firm <- as.numeric(as.character(hepatitis$Liver_firm))
+hepatitis$Spleen_palpable <- as.numeric(as.character(hepatitis$Spleen_palpable))
+hepatitis$Spiders <- as.numeric(as.character(hepatitis$Spiders))
+hepatitis$Ascites <- as.numeric(as.character(hepatitis$Ascites))
+hepatitis$Varices <- as.numeric(as.character(hepatitis$Varices))
 hepatitis$Bilirubin <- as.numeric(as.character(hepatitis$Bilirubin))
 hepatitis$Alk_phosphate <- as.numeric(as.character(hepatitis$Alk_phosphate))
 hepatitis$Sgot <- as.numeric(as.character(hepatitis$Sgot))
+hepatitis$Albumin <- as.numeric(as.character(hepatitis$Albumin))
 hepatitis$Protime <- as.numeric(as.character(hepatitis$Protime))
+hepatitis$Histology <- as.numeric(as.character(hepatitis$Histology))
 
 head(hepatitis)
-#'*Sgot, Alk_phosphate, and Protime show as double - is this okay? Should they be numeric?*
+
 ```
 
-```{r}
-#'*Steroid is object of class impute and factor. Is this okay?*
-class(hepatitis$Steroid)
-```
 
 Now that variables are in correct format, try glm() again.
 ```{r}
@@ -114,14 +132,16 @@ glm.fit <- glm(Class ~ Age + Sex + Steroid + Antivirals + Fatigue + Malaise + An
 summary(glm.fit)
 ```
 
+Next make predictions on the training data that I used to fit the model. Set type = response to change to the binary scale of the response variable. Assign the results to glm.probs to save a table of probabilities. 
+
+#'*QUESTION: Probability table contains what the model would have predicted based on this training set. I think next I should divide the data into training and test subsets.*
 ```{r}
 glm.probs <- predict(glm.fit,type = "response")
-glm.probs[1:5]
+glm.probs[1:10]
 ```
 
 ```{r}
-#not sure if die and live are in the right order here
-glm.pred <- ifelse(glm.probs > 0.5, "die", "live")
+glm.pred <- ifelse(glm.probs > 0.5, "live", "die")
 
 attach(hepatitis) ## this returned an error message
 table(glm.pred,Class)
@@ -131,29 +151,47 @@ table(glm.pred,Class)
 mean(glm.pred == Class)
 ```
 
-I think this means the model was only correct 10% of the time. Need to check this model again, and fit some others as well!
+The model was correct ~90% of the time, try to make it better by dividing into training and test sets.
 
-###Apply pipeline from Harris Chapter 11.4
+Use createDataPartition() to maintain the balance of the factor classes in the training and test data sets. 
+#'*I'm not sure if I need to use upsampling here or not.*
+
 
 ```{r}
-hepatitis$Class <- as.factor(hepatitis$Class)
-summary(hepatitis$Class)
+#using this code from a tutorial
+library(caret)
+'%ni%' <- Negate('%in%') 
+options(scipen=999) 
+
+# Prep Training and Test data
+set.seed(100)
+trainDataIndex <- createDataPartition(hepatitis$Class, p=0.7, list = F)  # 70% training data, list=F puts the results in a matrix
+trainData <- hepatitis[trainDataIndex, ]
+testData <- hepatitis[-trainDataIndex, ]
+
+summary(trainData$Class)
+summary(testData$Class)
+str(testData)
 ```
 
-Subset data for cases where Class = live. Then select the transformed component of the transcan object and subset (recall that the transcan object $transformed contains the matrix of transformed variables)
+Next fit the model to the training data (110 cases)
+```{r}
+logitmod <- glm(Class ~ Age + Sex + Steroid + Antivirals + Fatigue + Malaise + Anorexia + Liver_big + Liver_firm + Spleen_palpable + Spiders + Ascites + Varices + Bilirubin + Alk_phosphate + Sgot + Albumin + Protime + Histology, data = trainData, family = binomial)
+
+summary(logitmod)
+```
+
+Use this model to predict the response on the testData. The pred variable contains the probability that the observation is live for each case.
 
 ```{r}
-subset <- hepatitis$Class %in% "live"
-trans <- htrans$transformed[subset,]
-hsub <- hepatitis[subset,] #subset rows where Class = live
+pred <- predict(logitmod, newdata = testData, type = "response")
 ```
-
-
-Now fit binary logistic model on original variables 
 
 ```{r}
-library(rms)
-f <- lrm(Class ~ Age + Sex + Steroid + Antivirals + Fatigue + Malaise + Anorexia + Liver_big + Liver_firm + Spleen_palpable + Spiders + Ascites + Varices + Bilirubin + Alk_phosphate + Sgot + Albumin + Protime + Histology, data=hsub)
+y_pred_num <- ifelse(pred > 0.5, "live", "die")
+y_pred <- factor(y_pred_num, levels=c("die","live"))
+y_act <- testData$Class
 
+mean(y_pred == y_act)
 ```
-
+ The model has an accuracy rate of 87%.
