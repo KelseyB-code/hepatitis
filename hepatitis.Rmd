@@ -6,7 +6,6 @@ output: html_notebook
 Variable names and data were in a separate file. Start by assigning names to variables.
 
 ```{r}
-rm(list=ls())
 hepatitis_raw <- read.csv("C:/Users/kelse/Documents/Year_2/Rotations/Colubri/Hepatitis_data/hepatitis.csv", header = FALSE, sep = ",")
 
 hepatitis <- hepatitis_raw
@@ -191,7 +190,48 @@ pred <- predict(logitmod, newdata = testData, type = "response")
 y_pred_num <- ifelse(pred > 0.5, "live", "die")
 y_pred <- factor(y_pred_num, levels=c("die","live"))
 y_act <- testData$Class
-
-mean(y_pred == y_act)
+mean(y_pred == y_act) #another way to generate confusion matrix
+summary(y_act)
 ```
  The model has an accuracy rate of 87%.
+ 
+ Next create confusion matrix. It shows:
+ Accuracy of 87% which is TP / (TP + FP) #'*ANDRES: wouldn't this be 3/(3+0)...I am confused here*
+ Sensitivity of 33% which is TP/P or 3/9
+ Specificity of 100% which is TN/N or 36/36
+
+```{r}
+library(caret)
+confusionMatrix(y_pred, testData[["Class"]])
+```
+
+Now plot an ROC curve - code from https://rpubs.com/dtime/672367
+#'*ANDRES: I used code from the url above, what are the rules regarding citations/crediting sources you borrow code from?*
+
+```{r}
+library(ROCR)
+roc_pred <- prediction(predictions = pred, labels = testData$Class)
+roc_perf <- performance(roc_pred, "tpr", "fpr")
+plot(roc_perf,
+     colorize = TRUE)
+```
+
+Now calculate the AUC
+```{r}
+auc_ROCR <- performance(roc_pred, measure = "auc")
+
+#one way to calculate the AUC
+auc_method1 <- auc_ROCR@y.values[[1]]
+auc_method1
+```
+
+And another way to calculate the AUC
+
+```{r}
+auc_method2 <- unlist(slot(auc_ROCR, "y.values"))
+auc_method2
+```
+
+
+
+
