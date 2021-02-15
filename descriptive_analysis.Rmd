@@ -64,8 +64,6 @@ hepatitis$Albumin <- as.numeric(as.character(hepatitis$Albumin))
 hepatitis$Protime <- as.numeric(as.character(hepatitis$Protime))
 hepatitis$Histology <- as.numeric(as.character(hepatitis$Histology))
 
-summary(hepatitis)
-
 ```
 
 Subset binary variables into new data frame "hep_binary"
@@ -170,16 +168,11 @@ Format death data as a string
 a <- map(test4, 1)
 b <- round(Death,0)
 
+
 for (i in hep_binary) {
   Death <- paste(a,"/32"," (",b,"%)", sep="")
 }
-Death
-
-# create new data frame to summarize
-names <- list(names(hep_binary))
-df <- data.frame(names, OI, Survival, Death, p, OR)
-names(df) <- c("", "Overall Incidence", "Survival", "Death")
-df
+Death 
 ```
 
 Calculate odds ratio for each binary variable. 
@@ -191,17 +184,17 @@ library(questionr)
 test6 <- map(test4, odds.ratio)
 OR <- map(test6, "OR") 
 OR <- round(data.frame(unlist(OR)), 1)
-df$Odds_ratio <- OR$unlist.OR.
 
 #add p-value for each odds ratio to the summary table df
 p_value <- map(test6, "p") 
 p <- round(data.frame(unlist(p_value)), 2)
-df$p_value <- p$unlist.p_value
+
 ```
 
 ```{r}
 names <- list(names(hep_binary))
-df <- data.frame(names, OI, Survival, Death, p, OR)
-names(df) <- c("", "Overall Incidence", "Survival", "Death", "p value", "Odds ratio")
+df <- data.frame(OI, Survival, Death, p, OR)
+names(df) <- c("Overall Incidence", "Survival", "Death", "p value", "Odds ratio")
+df
 ```
 
