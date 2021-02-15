@@ -1,0 +1,207 @@
+---
+title: "Hepatitis"
+output: html_notebook
+---
+
+Variable names and data were in a separate file. Start by assigning names to variables.
+
+```{r}
+hepatitis_raw <- read.csv("C:/Users/kelse/Documents/Year_2/Rotations/Colubri/Hepatitis_data/hepatitis.csv", header = FALSE, sep = ",")
+
+hepatitis <- hepatitis_raw
+
+names <- c("Class", "Age", "Sex", "Steroid",  "Antivirals", "Fatigue", "Malaise", "Anorexia", "Liver_big", "Liver_firm",  "Spleen_palpable",  "Spiders", "Ascites",  "Varices", "Bilirubin", "Alk_phosphate", "Sgot",  "Albumin", "Protime",  "Histology")
+
+names(hepatitis) <- names
+
+head(hepatitis)
+```
+
+
+It looks like missing values are recorded as "?" in this dataset. Start by changing these to NA.
+
+```{r}
+library(naniar)
+hepatitis <- hepatitis %>% 
+  replace_with_na_all(condition = ~.x == "?")
+
+sapply(hepatitis, function(x) sum(is.na(x))) # Display total NAs in each variable
+```
+
+Replace values of 1 and 2 with die and live, respectively (got this info from hepatitis NAMES file).
+
+```{r}
+hepatitis <- within(hepatitis, {
+Class[Class == 1] <- "die"
+Class[Class == 2] <- "live"
+})
+
+```
+
+Convert character variables to factors
+```{r}
+
+hepatitis$Class <- factor(hepatitis$Class)
+
+#Convert character variables to factors
+hepatitis$Age <- as.numeric(as.character(hepatitis$Age))
+hepatitis$Sex <- as.numeric(as.character(hepatitis$Sex))
+hepatitis$Steroid <- as.numeric(as.character(hepatitis$Steroid))
+hepatitis$Antivirals <- as.numeric(as.character(hepatitis$Antivirals))
+hepatitis$Fatigue <- as.numeric(as.character(hepatitis$Fatigue))
+hepatitis$Malaise <- as.numeric(as.character(hepatitis$Malaise))
+hepatitis$Anorexia <- as.numeric(as.character(hepatitis$Anorexia))
+hepatitis$Liver_big <- as.numeric(as.character(hepatitis$Liver_big))
+hepatitis$Liver_firm <- as.numeric(as.character(hepatitis$Liver_firm))
+hepatitis$Spleen_palpable <- as.numeric(as.character(hepatitis$Spleen_palpable))
+hepatitis$Spiders <- as.numeric(as.character(hepatitis$Spiders))
+hepatitis$Ascites <- as.numeric(as.character(hepatitis$Ascites))
+hepatitis$Varices <- as.numeric(as.character(hepatitis$Varices))
+hepatitis$Bilirubin <- as.numeric(as.character(hepatitis$Bilirubin))
+hepatitis$Alk_phosphate <- as.numeric(as.character(hepatitis$Alk_phosphate))
+hepatitis$Sgot <- as.numeric(as.character(hepatitis$Sgot))
+hepatitis$Albumin <- as.numeric(as.character(hepatitis$Albumin))
+hepatitis$Protime <- as.numeric(as.character(hepatitis$Protime))
+hepatitis$Histology <- as.numeric(as.character(hepatitis$Histology))
+
+summary(hepatitis)
+
+```
+
+Subset binary variables into new data frame "hep_binary"
+
+```{r}
+library(tidyverse)
+hep_binary <- hepatitis %>%
+  select(6:14,20)
+```
+
+Write a function to determine overall incidence of each binary variable. Sum values equal to 1 for each column, then divide by total number of cases (155).
+
+```{r}
+Overall_incidence_func <- function(x) {
+  (length(which(x==1))) / 155 * 100
+}
+
+Overall_incidence <- sapply(hep_binary, Overall_incidence_func)
+
+```
+
+TRY SOMETHING ELSE
+
+```{r}
+a <- sapply(hep_binary, function(x) length(which(x==1)))
+b <- round(Overall_incidence, 0)
+
+for (i in hep_binary) {
+  OI <- paste(a,"/155"," (",b,"%)", sep="")
+}
+```
+
+Calculate survival. Overall 123/155 survived. 
+
+total # cases where symptom occurred and outcome = survival / 123
+
+```{r}
+
+#write a function to create a table of symptoms summarized by live or die and then extract the second element of the table corresponding to cases where patient experienced symptom and survived
+select_survival <- function(col) {
+  (with(hepatitis, table(Class, col))[2]) / 123 * 100
+}
+
+#apply function to all binary variables and save in new variable "Survival"
+Survival <- sapply(hep_binary, select_survival)
+```
+
+
+Calculate death. Overall 32/155 died. 
+
+total # cases where symptom occurred and outcome = death / 32
+
+```{r}
+
+#write a function to create a table of symptoms summarized by live or die and then extract the second element of the table corresponding to cases where patient experienced symptom and survived
+select_death <- function(col) {
+  (with(hepatitis, table(Class, col))[3]) / 32 * 100
+}
+
+#apply function to all binary variables and save in new variable "Survival"
+Death <- sapply(hep_binary, select_death)
+```
+
+Create a summary table of outcomes for the data 
+```{r}
+table_func <- function(col) {
+  (with(hepatitis, table(Class, col)))
+}
+
+group <- c("die, symptom(+)", "live, symptom(+)", "die, symptom(-)", "live, symptom(-)")
+
+summary_table <- sapply(hep_binary, table_func)
+dimnames(summary_table) <- list("Group" = group, "Symptom" = names(hep_binary))
+
+```
+
+Create survival outcome table for each binary variable and save in a list.
+```{r}
+#write function to create individual outcome tables for each binary variable and save table as list named test4
+table_func2 <- function(col) {
+  (with(hepatitis, table(col, Class)))
+}
+
+test4 <- map(hep_binary, table_func2)
+```
+
+Format survival data as a string 
+
+```{r}
+a <- map(test4, 3)
+b <- round(Survival,0)
+
+for (i in hep_binary) {
+  Survival <- paste(a,"/123"," (",b,"%)", sep="")
+}
+
+```
+
+Format death data as a string 
+
+```{r}
+a <- map(test4, 1)
+b <- round(Death,0)
+
+for (i in hep_binary) {
+  Death <- paste(a,"/32"," (",b,"%)", sep="")
+}
+Death
+
+# create new data frame to summarize
+names <- list(names(hep_binary))
+df <- data.frame(names, OI, Survival, Death, p, OR)
+names(df) <- c("", "Overall Incidence", "Survival", "Death")
+df
+```
+
+Calculate odds ratio for each binary variable. 
+
+```{r}
+library(questionr)
+
+#add odds ratio for each variable to the summary table df
+test6 <- map(test4, odds.ratio)
+OR <- map(test6, "OR") 
+OR <- round(data.frame(unlist(OR)), 1)
+df$Odds_ratio <- OR$unlist.OR.
+
+#add p-value for each odds ratio to the summary table df
+p_value <- map(test6, "p") 
+p <- round(data.frame(unlist(p_value)), 2)
+df$p_value <- p$unlist.p_value
+```
+
+```{r}
+names <- list(names(hep_binary))
+df <- data.frame(names, OI, Survival, Death, p, OR)
+names(df) <- c("", "Overall Incidence", "Survival", "Death", "p value", "Odds ratio")
+```
+
