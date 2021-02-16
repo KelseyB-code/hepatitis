@@ -1,0 +1,131 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+---
+title: "Hepatitis"
+output: html_notebook
+---
+
+```{r}
+library(naniar)
+library(tidyverse)
+library(Rmisc)
+```
+
+
+```{r}
+hepatitis_raw <- read.csv("C:/Users/kelse/Documents/Year_2/Rotations/Colubri/Hepatitis_data/hepatitis.csv", header = FALSE, sep = ",")
+
+hepatitis <- hepatitis_raw
+
+names <- c("Class", "Age", "Sex", "Steroid",  "Antivirals", "Fatigue", "Malaise", "Anorexia", "Liver_big", "Liver_firm",  "Spleen_palpable",  "Spiders", "Ascites",  "Varices", "Bilirubin", "Alk_phosphate", "Sgot",  "Albumin", "Protime",  "Histology")
+
+names(hepatitis) <- names
+
+hepatitis <- hepatitis %>% 
+  replace_with_na_all(condition = ~.x == "?")
+
+hepatitis <- within(hepatitis, {
+Class[Class == 1] <- "die"
+Class[Class == 2] <- "live"
+})
+
+hepatitis$Class <- factor(hepatitis$Class)
+
+#Convert character variables to factors
+hepatitis$Age <- as.numeric(as.character(hepatitis$Age))
+hepatitis$Sex <- as.numeric(as.character(hepatitis$Sex))
+hepatitis$Steroid <- as.numeric(as.character(hepatitis$Steroid))
+hepatitis$Antivirals <- as.numeric(as.character(hepatitis$Antivirals))
+hepatitis$Fatigue <- as.numeric(as.character(hepatitis$Fatigue))
+hepatitis$Malaise <- as.numeric(as.character(hepatitis$Malaise))
+hepatitis$Anorexia <- as.numeric(as.character(hepatitis$Anorexia))
+hepatitis$Liver_big <- as.numeric(as.character(hepatitis$Liver_big))
+hepatitis$Liver_firm <- as.numeric(as.character(hepatitis$Liver_firm))
+hepatitis$Spleen_palpable <- as.numeric(as.character(hepatitis$Spleen_palpable))
+hepatitis$Spiders <- as.numeric(as.character(hepatitis$Spiders))
+hepatitis$Ascites <- as.numeric(as.character(hepatitis$Ascites))
+hepatitis$Varices <- as.numeric(as.character(hepatitis$Varices))
+hepatitis$Bilirubin <- as.numeric(as.character(hepatitis$Bilirubin))
+hepatitis$Alk_phosphate <- as.numeric(as.character(hepatitis$Alk_phosphate))
+hepatitis$Sgot <- as.numeric(as.character(hepatitis$Sgot))
+hepatitis$Albumin <- as.numeric(as.character(hepatitis$Albumin))
+hepatitis$Protime <- as.numeric(as.character(hepatitis$Protime))
+hepatitis$Histology <- as.numeric(as.character(hepatitis$Histology))
+
+```
+
+Create separate data frames for outcomes of death or survival. Only include continuous variables.
+```{r}
+#survival
+survival <- hepatitis %>%
+  filter(Class == "live") %>%
+  select(2,15:19)
+
+missing_surv <- sapply(survival, function (x) sum(is.na(x))) # calculate total NA for each variable
+n_survival <- 123 - missing_surv
+
+#death 
+death <- hepatitis %>%
+  filter(Class == "die") %>%
+  select(2,15:19)
+
+missing_death <- sapply(death, function (x) sum(is.na(x))) # calculate total NA for each variable
+n_death <- 32 - missing_death
+```
+
+Calculate mean and 95% CI for SURVIVAL for each continuous variable.
+```{r}
+CI_surv <- map(survival, function (x) CI((na.omit(x, ci=.95))))
+mean_surv <- map(CI_surv, 2)
+upper_surv <- map(CI_surv, 1)
+lower_surv <- map(CI_surv, 3)
+mean_surv <- round(as.numeric(mean_surv),2)
+upper_surv <- round(as.numeric(upper_surv),2)
+lower_surv <- round(as.numeric(lower_surv),2)
+
+for (i in survival) {
+  pt_survive <- paste(mean_surv," (",lower_surv,"-",upper_surv,")",sep="")
+}
+pt_survive
+```
+
+Calculate mean and 95% CI for DEATH for each continuous variable.
+```{r}
+CI_death <- map(death, function (x) CI((na.omit(x, ci=.95))))
+mean_death <- map(CI_death, 2)
+upper_death <- map(CI_death, 1)
+lower_death <- map(CI_death, 3)
+mean_death <- round(as.numeric(mean_death),2)
+upper_death <- round(as.numeric(upper_death),2)
+lower_death <- round(as.numeric(lower_death),2)
+
+for (i in death) {
+  pt_die <- paste(mean_death," (",lower_death,"-",upper_death,")",sep="")
+}
+pt_die
+```
+
+Calculate missing data for each variable.
+
+```{r}
+hep_continuous <- hepatitis %>%
+  select(2,15:19)
+missing_total <- sapply(hep_continuous, function (x) sum(is.na(x))) # calculate total NA for each variable
+
+missing_total
+for (i in hep_continuous) {
+  missing <- paste(missing_total,"/155",sep="")
+}
+missing
+```
+Create new data frame to summarize mean and CI data
+
+```{r}
+hep_cont_summary <- data.frame(names(hep_continuous), pt_survive, pt_die, missing)
+names(hep_cont_summary) <- c("", "Patients who survived (mean, 95% CI)", "Patients who died (mean, 95% CI)", "Missing (n=155)")
+hep_cont_summary
+```
+
+
