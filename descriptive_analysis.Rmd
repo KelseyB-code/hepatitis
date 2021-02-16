@@ -2,6 +2,13 @@
 title: "Hepatitis"
 output: html_notebook
 ---
+Load packages
+```{r}
+library(naniar)
+library(tidyverse)
+library(stringr)
+```
+
 
 Variable names and data were in a separate file. Start by assigning names to variables.
 
@@ -21,7 +28,7 @@ head(hepatitis)
 It looks like missing values are recorded as "?" in this dataset. Start by changing these to NA.
 
 ```{r}
-library(naniar)
+
 hepatitis <- hepatitis %>% 
   replace_with_na_all(condition = ~.x == "?")
 
@@ -69,7 +76,6 @@ hepatitis$Histology <- as.numeric(as.character(hepatitis$Histology))
 Subset binary variables into new data frame "hep_binary"
 
 ```{r}
-library(tidyverse)
 hep_binary <- hepatitis %>%
   select(6:14,20)
 ```
@@ -77,12 +83,16 @@ hep_binary <- hepatitis %>%
 Write a function to determine overall incidence of each binary variable. Sum values equal to 1 for each column, then divide by total number of cases (155).
 
 ```{r}
+sum_hep <- sapply(hep_binary, function (x) sum(is.na(x)))
+totals <- 155 - sum_hep
 Overall_incidence_func <- function(x) {
-  (length(which(x==1))) / 155 * 100
+  (length(which(x==1)))
 }
 
-Overall_incidence <- sapply(hep_binary, Overall_incidence_func)
+overall <- sapply(hep_binary, Overall_incidence_func)
 
+Overall_incidence <- overall / totals * 100
+Overall_incidence
 ```
 
 TRY SOMETHING ELSE
@@ -92,8 +102,10 @@ a <- sapply(hep_binary, function(x) length(which(x==1)))
 b <- round(Overall_incidence, 0)
 
 for (i in hep_binary) {
-  OI <- paste(a,"/155"," (",b,"%)", sep="")
+  OI <- paste(a,"/",totals," (",b,"%)", sep="")
 }
+
+OI
 ```
 
 Calculate survival. Overall 123/155 survived. 
@@ -101,14 +113,15 @@ Calculate survival. Overall 123/155 survived.
 total # cases where symptom occurred and outcome = survival / 123
 
 ```{r}
-
 #write a function to create a table of symptoms summarized by live or die and then extract the second element of the table corresponding to cases where patient experienced symptom and survived
 select_survival <- function(col) {
-  (with(hepatitis, table(Class, col))[2]) / 123 * 100
+  (with(hepatitis, table(Class, col))[2] / 123 * 100)
 }
 
 #apply function to all binary variables and save in new variable "Survival"
-Survival <- sapply(hep_binary, select_survival)
+Survival_percent <- sapply(hep_binary, select_survival)
+
+Survival_percent
 ```
 
 
@@ -120,11 +133,13 @@ total # cases where symptom occurred and outcome = death / 32
 
 #write a function to create a table of symptoms summarized by live or die and then extract the second element of the table corresponding to cases where patient experienced symptom and survived
 select_death <- function(col) {
-  (with(hepatitis, table(Class, col))[3]) / 32 * 100
+  (with(hepatitis, table(col, Class))[1])  / 32 * 100
 }
-
+     
+     
 #apply function to all binary variables and save in new variable "Survival"
 Death <- sapply(hep_binary, select_death)
+Death
 ```
 
 Create a summary table of outcomes for the data 
@@ -148,17 +163,22 @@ table_func2 <- function(col) {
 }
 
 test4 <- map(hep_binary, table_func2)
+test4
 ```
 
 Format survival data as a string 
 
 ```{r}
 a <- map(test4, 3)
-b <- round(Survival,0)
+
+b <- round(Survival_percent,0)
 
 for (i in hep_binary) {
   Survival <- paste(a,"/123"," (",b,"%)", sep="")
 }
+
+Survival
+
 
 ```
 
